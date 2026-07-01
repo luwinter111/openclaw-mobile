@@ -4,4 +4,5 @@ export type RootStackParamList = {
   Agents: undefined;
   AgentEdit: { agentId?: string };
   Settings: undefined;
+  Automation: undefined;
 };

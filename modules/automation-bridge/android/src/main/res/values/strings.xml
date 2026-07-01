@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="automation_accessibility_service_description">允许 OpenClaw 小助理读取当前屏幕内容并执行点击、输入、滚动等操作，用于完成你交代的手机自动化任务。</string>
+</resources>

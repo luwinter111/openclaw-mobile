@@ -7,6 +7,7 @@ import ChatScreen from '../screens/ChatScreen';
 import AgentsScreen from '../screens/AgentsScreen';
 import AgentEditScreen from '../screens/AgentEditScreen';
 import SettingsScreen from '../screens/SettingsScreen';
+import AutomationScreen from '../screens/AutomationScreen';
 import { colors } from '../theme';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -46,6 +47,11 @@ export default function RootNavigator() {
           options={{ title: '编辑 Agent' }}
         />
         <Stack.Screen name="Settings" component={SettingsScreen} options={{ title: '设置' }} />
+        <Stack.Screen
+          name="Automation"
+          component={AutomationScreen}
+          options={{ title: '手机自动化（测试）' }}
+        />
       </Stack.Navigator>
     </NavigationContainer>
   );

@@ -77,6 +77,9 @@ export default function ConversationsScreen({ navigation }: Props) {
           <Pressable onPress={() => navigation.navigate('Agents')} hitSlop={8}>
             <Text style={styles.headerAction}>Agent</Text>
           </Pressable>
+          <Pressable onPress={() => navigation.navigate('Automation')} hitSlop={8}>
+            <Text style={styles.headerAction}>自动化</Text>
+          </Pressable>
           <Pressable onPress={() => navigation.navigate('Settings')} hitSlop={8}>
             <Text style={styles.headerAction}>⚙️</Text>
           </Pressable>
