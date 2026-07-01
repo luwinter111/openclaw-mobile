@@ -1,13 +1,18 @@
 package expo.modules.automationbridge
 
 import android.accessibilityservice.AccessibilityService as SystemAccessibilityService
+import android.app.Activity
 import android.content.Intent
+import android.media.projection.MediaProjectionManager
 import android.os.Bundle
 import android.provider.Settings
 import android.view.accessibility.AccessibilityNodeInfo
 import expo.modules.kotlin.exception.CodedException
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
+import kotlin.coroutines.resume
+import kotlinx.coroutines.CancellableContinuation
+import kotlinx.coroutines.suspendCancellableCoroutine
 
 private class ServiceNotConnectedException :
   CodedException("Accessibility service is not running. Ask the user to enable it in system settings first.")
@@ -18,7 +23,16 @@ private class NodeNotFoundException(nodeId: String) :
 private class InvalidGlobalActionException(action: String) :
   CodedException("Unknown global action '$action'. Expected one of: back, home, recents.")
 
+private class NoActivityException :
+  CodedException("No current activity to launch the screen-capture consent dialog from.")
+
 class AutomationBridgeModule : Module() {
+
+  companion object {
+    private const val SCREEN_CAPTURE_REQUEST_CODE = 84271
+  }
+
+  private var pendingScreenCaptureContinuation: CancellableContinuation<Boolean>? = null
 
   override fun definition() = ModuleDefinition {
     Name("AutomationBridge")
@@ -81,6 +95,64 @@ class AutomationBridgeModule : Module() {
         else -> throw InvalidGlobalActionException(action)
       }
       service.performGlobalAction(globalAction)
+    }
+
+    // Coordinate-based fallback for when there's no accessibility node to
+    // target (the vision path only ever gets pixel coordinates back).
+    AsyncFunction("performTap") { x: Double, y: Double ->
+      val service = AutomationAccessibilityService.instance ?: throw ServiceNotConnectedException()
+      service.tap(x.toFloat(), y.toFloat())
+    }
+
+    AsyncFunction("performSwipe") { x1: Double, y1: Double, x2: Double, y2: Double, durationMs: Double? ->
+      val service = AutomationAccessibilityService.instance ?: throw ServiceNotConnectedException()
+      service.swipe(x1.toFloat(), y1.toFloat(), x2.toFloat(), y2.toFloat(), durationMs?.toLong())
+    }
+
+    Function("hasScreenCapturePermission") {
+      ScreenCaptureManager.hasActiveSession()
+    }
+
+    // Launches the system's screen-capture consent dialog and suspends until
+    // the user answers it. Resolves true/false rather than throwing on
+    // denial, since "user said no" is an expected outcome, not an error.
+    AsyncFunction("requestScreenCapturePermission") {
+      val activity = appContext.currentActivity ?: throw NoActivityException()
+      val manager = activity.getSystemService(MediaProjectionManager::class.java)
+      val intent = manager.createScreenCaptureIntent()
+      suspendCancellableCoroutine<Boolean> { continuation ->
+        pendingScreenCaptureContinuation = continuation
+        activity.startActivityForResult(intent, SCREEN_CAPTURE_REQUEST_CODE)
+      }
+    }
+
+    AsyncFunction("captureScreenshot") {
+      ScreenCaptureManager.captureBase64Png()
+    }
+
+    Function("stopScreenCapture") {
+      appContext.reactContext?.let { ScreenCaptureService.stop(it) }
+      ScreenCaptureManager.release()
+    }
+
+    OnActivityResult { activity, payload ->
+      if (payload.requestCode != SCREEN_CAPTURE_REQUEST_CODE) return@OnActivityResult
+      val continuation = pendingScreenCaptureContinuation
+      pendingScreenCaptureContinuation = null
+
+      val data = payload.data
+      if (payload.resultCode != Activity.RESULT_OK || data == null) {
+        continuation?.resume(false)
+        return@OnActivityResult
+      }
+
+      val manager = activity.getSystemService(MediaProjectionManager::class.java)
+      val projection = manager.getMediaProjection(payload.resultCode, data)
+      // The foreground service must already be running before we touch the
+      // projection (createVirtualDisplay), so start it first.
+      ScreenCaptureService.start(activity.applicationContext)
+      ScreenCaptureManager.attach(activity.applicationContext, projection)
+      continuation?.resume(true)
     }
   }
 

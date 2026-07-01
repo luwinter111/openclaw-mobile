@@ -7,7 +7,8 @@
 - **会话管理**：每个 Agent 可以开启多个会话，历史记录保存在设备本地（`AsyncStorage`）。
 - **真实对话**：直接调用 Anthropic Messages API 与 Claude 对话。
 - **设置页**：本机保存 API Key。
-- **手机自动化（Phase 1，Android）**：基于无障碍服务读取当前屏幕的语义树，并执行点击/输入/滚动，
+- **手机自动化（Android）**：用一句话描述任务，助理读取无障碍语义树（读不到时截图兜底）、决定下一步
+  动作（点击/输入/滚动/手势/系统返回等）并执行，涉及支付/删除等敏感操作前会弹窗二次确认。
   详见 [`docs/automation-design.md`](docs/automation-design.md)。
 
 ## 技术栈
@@ -30,12 +31,14 @@ src/
     AgentsScreen.tsx         # Agent 列表
     AgentEditScreen.tsx      # 新建/编辑 Agent
     SettingsScreen.tsx       # API Key 设置
-    AutomationScreen.tsx     # 手机自动化测试页（Phase 1，仅 Android 有效）
+    AutomationScreen.tsx     # 手机自动化页面（任务输入/执行日志/权限管理，仅 Android 有效）
+  automation/                # 自动化的 JS 编排层（感知/动作/风险确认/主循环）
+  api/automationAgent.ts    # 用 Anthropic tool use 让模型输出结构化动作
   storage/                   # AsyncStorage 封装
   types/                     # 类型定义
   theme.ts                   # 配色
 modules/
-  automation-bridge/          # 自定义 Expo Native Module：无障碍服务 + 语义树/动作桥接（仅 Android）
+  automation-bridge/          # 自定义 Expo Native Module：无障碍服务 + 截图 + 手势桥接（仅 Android）
 docs/
   automation-design.md        # 手机自动化能力的完整设计文档
 ```
@@ -60,6 +63,9 @@ npm run start        # 启动 Expo，扫码用手机上的 Expo Go App 打开
 ```bash
 npx expo run:android      # 或者用 EAS 出一个 Dev Client 装到手机上
 ```
+
+用到"录屏兜底"时，系统会弹出一次性的录屏授权对话框，并在授权期间常驻一条"正在捕获屏幕"的通知——
+这是 Android 系统强制的隐私提示，代码没法隐藏，也不应该尝试隐藏。
 
 ## 已知限制 / 后续可扩展方向
 

@@ -161,9 +161,16 @@ async function runAutomationTask(instruction: string, onStep: (s: StepLog) => vo
 - `MediaProjection` 每次冷启动都要弹一次系统授权,且 Android 10+ 需要前台服务通知常驻(用户能看到"正在录屏"提示,无法隐藏,这是系统强制的隐私保护,设计上不要试图绕过)。
 - 银行类/`FLAG_SECURE` 窗口:无障碍树可能拿不全,截图也会是黑屏,这种情况要让模型/日志明确报"当前屏幕不可读",而不是硬编造结果。
 
-## 8. 分阶段实现建议
+## 8. 分阶段实现建议(状态)
 
-1. **Phase 1**:原生模块 + 无障碍树读取 + 语义动作执行(click/type/scroll),不做截图兜底,先跑通"树可用"的主流场景。
-2. **Phase 2**:接入 `AutomationScreen.tsx` + `agentLoop.ts`,跑通"自然语言指令 -> 单步动作"的最小闭环。
-3. **Phase 3**:加截图兜底(`ScreenCaptureManager` + `claudeVision.ts` + `dispatchGesture`),处理无障碍树不可用的场景。
-4. **Phase 4**:多步任务的历史管理、失败重试、"停止/确认"这类安全阀(比如涉及支付/删除类操作前应该要求用户二次确认,不能让模型自主执行高风险操作)。
+1. **Phase 1 ✅**:原生模块 + 无障碍树读取 + 语义动作执行(click/setText/scroll/globalAction)。
+2. **Phase 2 ✅**:`AutomationScreen.tsx` + `agentLoop.ts` + `src/api/automationAgent.ts`,用 Anthropic 的 tool use(强制 `tool_choice: perform_action`)让模型每步返回一个结构化动作,而不是解析自由文本 JSON。
+3. **Phase 3 ✅**:`ScreenCaptureManager.kt`(MediaProjection + ImageReader)+ `GestureDispatcher.kt`(dispatchGesture 做 tap/swipe)+ `ScreenCaptureService.kt`(Android 10+/14+ 要求的前台服务)。截图走同一个 `decideNextAction`,只是 content block 换成图片,不需要单独的 `claudeVision.ts`。
+4. **Phase 4 ✅(基础版)**:`riskGuard.ts` 用关键词启发式识别高风险 click(支付/删除等),命中时通过 `onConfirmRequired` 回调弹窗二次确认;`agentLoop.ts` 里做了历史窗口截断(最近 8 步喂给模型)、连续失败 3 次自动终止、最多 20 步上限、以及 `isAborted` 支持中途停止。
+
+### 已知未覆盖 / 后续可加强
+
+- 风险启发式只覆盖 `click` 且只在无障碍树模式下生效(tap/swipe 只有坐标,拿不到文本做关键词匹配)。
+- 没有做"应用切换检测"(`onAccessibilityEvent` 目前是空实现),模型不知道任务过程中用户是否手动切到了别的 App。
+- 每次冷启动都要重新走一遍 `requestScreenCapturePermission`,这是系统限制,不是 bug。
+- **这一整套 Kotlin 代码都没有在真机/模拟器上编译验证过**(见文末环境限制说明),第一次用 `expo run:android` 构建时大概率会需要修几个编译错误。

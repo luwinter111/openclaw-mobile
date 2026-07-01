@@ -16,6 +16,16 @@ interface AutomationBridgeModuleType extends NativeModule<{}> {
   performSetText(nodeId: string, text: string): Promise<boolean>;
   performScroll(nodeId: string, direction: ScrollDirection): Promise<boolean>;
   performGlobalAction(action: GlobalAction): Promise<void>;
+
+  // Coordinate-based fallback used when acting on a screenshot instead of an
+  // accessibility node (the model can only give back pixel coordinates).
+  performTap(x: number, y: number): Promise<boolean>;
+  performSwipe(x1: number, y1: number, x2: number, y2: number, durationMs?: number): Promise<boolean>;
+
+  hasScreenCapturePermission(): boolean;
+  requestScreenCapturePermission(): Promise<boolean>;
+  captureScreenshot(): Promise<string>;
+  stopScreenCapture(): void;
 }
 
 const MODULE_NAME = 'AutomationBridge';
@@ -40,6 +50,12 @@ const fallback = {
   performSetText: async () => unavailable('performSetText'),
   performScroll: async () => unavailable('performScroll'),
   performGlobalAction: async () => unavailable('performGlobalAction'),
+  performTap: async () => unavailable('performTap'),
+  performSwipe: async () => unavailable('performSwipe'),
+  hasScreenCapturePermission: () => false,
+  requestScreenCapturePermission: async () => unavailable('requestScreenCapturePermission'),
+  captureScreenshot: async () => unavailable('captureScreenshot'),
+  stopScreenCapture: () => unavailable('stopScreenCapture'),
 } as unknown as AutomationBridgeModuleType;
 
 export default nativeModule ?? fallback;

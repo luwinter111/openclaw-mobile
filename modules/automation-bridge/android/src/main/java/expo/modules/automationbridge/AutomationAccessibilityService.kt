@@ -44,4 +44,13 @@ class AutomationAccessibilityService : AccessibilityService() {
     val root = rootInActiveWindow ?: return null
     return UiTreeSerializer.findNodeByPath(root, nodeId)
   }
+
+  suspend fun tap(x: Float, y: Float): Boolean = GestureDispatcher.tap(this, x, y)
+
+  suspend fun swipe(x1: Float, y1: Float, x2: Float, y2: Float, durationMs: Long?): Boolean =
+    if (durationMs != null) {
+      GestureDispatcher.swipe(this, x1, y1, x2, y2, durationMs)
+    } else {
+      GestureDispatcher.swipe(this, x1, y1, x2, y2)
+    }
 }

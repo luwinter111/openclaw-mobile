@@ -37,6 +37,30 @@ class AutomationBridgeModule extends NativeModule<{}> {
   async performGlobalAction(_action: GlobalAction): Promise<void> {
     throw new UnavailabilityError(MODULE_NAME, 'performGlobalAction');
   }
+
+  async performTap(_x: number, _y: number): Promise<boolean> {
+    throw new UnavailabilityError(MODULE_NAME, 'performTap');
+  }
+
+  async performSwipe(_x1: number, _y1: number, _x2: number, _y2: number, _durationMs?: number): Promise<boolean> {
+    throw new UnavailabilityError(MODULE_NAME, 'performSwipe');
+  }
+
+  hasScreenCapturePermission(): boolean {
+    return false;
+  }
+
+  async requestScreenCapturePermission(): Promise<boolean> {
+    throw new UnavailabilityError(MODULE_NAME, 'requestScreenCapturePermission');
+  }
+
+  async captureScreenshot(): Promise<string> {
+    throw new UnavailabilityError(MODULE_NAME, 'captureScreenshot');
+  }
+
+  stopScreenCapture(): void {
+    throw new UnavailabilityError(MODULE_NAME, 'stopScreenCapture');
+  }
 }
 
 export default registerWebModule(AutomationBridgeModule, MODULE_NAME);
